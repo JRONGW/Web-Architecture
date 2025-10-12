@@ -359,8 +359,34 @@ function main() {
         }
 
         polys.forEach(f => {
-          f.properties = { ...(f.properties || {}), NAME: info.name, CODE: info.code };
-          COUNTRY_FEATURES.push(f);
+          // Transform geometry to match the visual offset
+          const transformGeometry = (geom) => {
+            const transformCoords = (coords) => {
+              if (typeof coords[0] === 'number') {
+                // [lon, lat] pair - apply the same transformation as visual
+                const [lon, lat] = coords;
+                return [lon, -lat + geoJsonLatOffset];
+              }
+              return coords.map(transformCoords);
+            };
+
+            const newGeom = { type: geom.type };
+            if (geom.type === "Polygon") {
+              newGeom.coordinates = geom.coordinates.map(ring => transformCoords(ring));
+            } else if (geom.type === "MultiPolygon") {
+              newGeom.coordinates = geom.coordinates.map(poly => 
+                poly.map(ring => transformCoords(ring))
+              );
+            }
+            return newGeom;
+          };
+
+          const clickFeature = {
+            type: "Feature",
+            properties: { NAME: info.name, CODE: info.code },
+            geometry: transformGeometry(f.geometry)
+          };
+          COUNTRY_FEATURES.push(clickFeature);
           addCountryOutline(f, countryOutlineGroup, outlineMaterial);
         });
       } catch (e) {
@@ -371,10 +397,10 @@ function main() {
 
   function goToCountryDetails(countryCode) {
     const routes = {
-      BRA: "/countries/brazil.html",
-      POL: "/countries/poland.html",
-      SGP: "/countries/singapore.html",
-      KOR: "/countries/south-korea.html",
+      BRA: "../countries/brazil.html",
+      POL: "../countries/poland.html",
+      SGP: "../countries/singapore.html",
+      KOR: "../countries/south-korea.html",
     };
     window.location.href = routes[countryCode] || "/";
   }
@@ -392,7 +418,7 @@ function main() {
     const p = hit.point.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI * 0.5);
 
     const { lat, lon } = vector3ToLatLon(p);
-    const pt = turf.point([lon, -lat + geoJsonLatOffset]); // Apply same offset for hit testing
+    const pt = turf.point([lon, lat]); // Now matches transformed GeoJSON
     const feature = COUNTRY_FEATURES.find(f => turf.booleanPointInPolygon(pt, f));
 
     if (feature) {
