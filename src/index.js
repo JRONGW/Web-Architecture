@@ -5,14 +5,20 @@ import { BufferGeometryUtils } from "three/examples/jsm/utils/BufferGeometryUtil
 import * as TWEEN from "@tweenjs/tween.js";
 import * as turf from "@turf/turf";
 
-import WORLD_TEXTURE from "../assets/world_white.png";
-import TREECOVER_DATA_URL from "../data/forestclipped.asc";
-import GDP_ASC_URL from "../data/2000GDPresample.asc";
 
-import COUNTRY_BRAZIL from "../data/Brazil.geojson";
-import COUNTRY_POLAND from "../data/Poland.geojson";
-import COUNTRY_SOUTHKOREA from "../data/SouthKorea.geojson";
-import GLOBAL_BOUNDARIES from "../data/globalboundaries.geojson";
+// ---- BASE_URL-safe asset/data URLs (work locally and on GitHub Pages)
+const WORLD_TEXTURE        = `${import.meta.env.BASE_URL}assets/world_white.png`;
+const TREECOVER_DATA_URL   = `${import.meta.env.BASE_URL}data/forestclipped.asc`;
+const GDP_ASC_URL          = `${import.meta.env.BASE_URL}data/2000GDPresample.asc`;
+
+const COUNTRY_BRAZIL       = `${import.meta.env.BASE_URL}data/Brazil.geojson`;
+const COUNTRY_POLAND       = `${import.meta.env.BASE_URL}data/Poland.geojson`;
+const COUNTRY_SOUTHKOREA   = `${import.meta.env.BASE_URL}data/SouthKorea.geojson`;
+const GLOBAL_BOUNDARIES    = `${import.meta.env.BASE_URL}data/globalboundaries.geojson`;
+
+// Now use WORLD_TEXTURE with TextureLoader, and fetch(...) the data/geojson URLs:
+// const tex = new THREE.TextureLoader().load(WORLD_TEXTURE);
+// const geo = await (await fetch(COUNTRY_BRAZIL)).json();
 
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
