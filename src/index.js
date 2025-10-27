@@ -5,7 +5,7 @@ import { BufferGeometryUtils } from "three/examples/jsm/utils/BufferGeometryUtil
 import * as TWEEN from "@tweenjs/tween.js";
 import * as turf from "@turf/turf";
 
-import WORLD_TEXTURE from "../assets/world.jpg";
+import WORLD_TEXTURE from "../assets/world_white.png";
 import TREECOVER_DATA_URL from "../data/forestclipped.asc";
 import GDP_ASC_URL from "../data/2000GDPresample.asc";
 
@@ -14,6 +14,11 @@ import COUNTRY_POLAND from "../data/Poland.geojson";
 import COUNTRY_SOUTHKOREA from "../data/SouthKorea.geojson";
 import GLOBAL_BOUNDARIES from "../data/globalboundaries.geojson";
 
+import { Line2 } from "three/examples/jsm/lines/Line2.js";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
+import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
+
+
 /* ---------------- Tweens ---------------- */
 class TweenManger {
   constructor() { this.numTweensRunning = 0; }
@@ -21,7 +26,7 @@ class TweenManger {
   createTween(targetObject) {
     const self = this;
     ++this.numTweensRunning;
-    let userCompleteFn = () => {};
+    let userCompleteFn = () => { };
     const tween = new TWEEN.Tween(targetObject).onComplete(function (...args) {
       self._handleComplete();
       userCompleteFn.call(this, ...args);
@@ -53,7 +58,7 @@ function main() {
   const mouse = new THREE.Vector2();
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color("black");
+  scene.background = new THREE.Color(0xffffff);
 
   // --- mapping fudge (must match rasters & bars) ---
   const lonFudge = Math.PI * 0.5;
@@ -131,39 +136,113 @@ function main() {
   }
 
   /* ---------- Groups & materials ---------- */
+
+  const LINE2_MATERIALS = [];
+
+  function line2FromPoints(points, material) {
+    // points: THREE.Vector3[]
+    const positions = [];
+    for (const p of points) { positions.push(p.x, p.y, p.z); }
+    const geom = new LineGeometry();
+    geom.setPositions(positions);
+    const line = new Line2(geom, material);
+    line.computeLineDistances();
+    return line;
+  }
+
+
   const countryOutlineGroup = new THREE.Group(); countryOutlineGroup.rotation.y = Math.PI * -0.5; scene.add(countryOutlineGroup);
   const globalBoundariesGroup = new THREE.Group(); globalBoundariesGroup.rotation.y = Math.PI * -0.5; scene.add(globalBoundariesGroup);
   const labelGroup = new THREE.Group(); labelGroup.rotation.y = Math.PI * -0.5; scene.add(labelGroup);
 
   const outlineMaterial = new THREE.LineBasicMaterial({
-    color: 0xffffb3, transparent: true, opacity: 0.5,
+    color: 0x111111, transparent: true, opacity: 0.5,
     blending: THREE.AdditiveBlending, depthWrite: false
   });
-  const globalBoundariesMaterial = new THREE.LineBasicMaterial({
-    color: 0xcbcbcb, transparent: true, opacity: 0.2, depthWrite: false
+  // groups
+  countryOutlineGroup.rotation.y = Math.PI * -0.5;
+  scene.add(countryOutlineGroup);
+
+  // NEW: a second group that’s slightly larger to fake a halo
+  const countryGlowGroup = new THREE.Group();
+  countryGlowGroup.rotation.y = Math.PI * -0.5;
+  countryGlowGroup.scale.set(1.03, 1.03, 1.03);   // push ~2% off the globe
+  countryGlowGroup.renderOrder = 999;             // draw late
+  scene.add(countryGlowGroup);
+
+  // global boundaries stay subtle
+
+  globalBoundariesGroup.rotation.y = Math.PI * -0.5;
+  scene.add(globalBoundariesGroup);
+
+  // materials
+  const selectedOutlineMaterial = new THREE.LineBasicMaterial({
+    color: 0xa2a6b1,       
+    transparent: true,
+    opacity: 0.5,
+    depthWrite: false
   });
+
+  const selectedGlowMaterial = new THREE.LineBasicMaterial({
+    color: 0xf3edc7,       // glow color 
+    transparent: true,
+    opacity: 0.85,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    depthTest: false
+  });
+
+  const globalBoundariesMaterial = new THREE.LineBasicMaterial({
+    color: 0xbfc5cc,       // light grey so it sits back on white
+    transparent: true,
+    opacity: 0.25,
+    depthWrite: false
+  });
+
+  // “thin” crisp outline (in screen pixels, independent of zoom)
+const selectedOutlineMat2 = new LineMaterial({
+  color: 0x0f0f0f,
+  transparent: true,
+  opacity: 0.9,
+  linewidth: 0.6,         // <= thinner than 1px look
+});
+LINE2_MATERIALS.push(selectedOutlineMat2);
+
+const selectedGlowMat2 = new LineMaterial({
+  color: 0xffd24d,        // yellow
+  transparent: true,
+  opacity: 0.9,
+  linewidth: 2.0,         // thick halo line
+  dashed: false
+});
+LINE2_MATERIALS.push(selectedGlowMat2);
+
 
   const geoJsonLatOffset = 25;
 
   /* ---------- Labels ---------- */
-  const LABEL_NORMAL = { text: "rgba(255,255,255,0.95)", underline: "rgba(255,255,255,0.85)" };
-  const LABEL_HOVER  = { text: "#ffd24d", underline: "#ffd24d" };
+  const LABEL_NORMAL = { text: "rgba(132, 132, 132, 0.95)", underline: "rgba(57, 57, 57, 0.85)" };
+  const LABEL_HOVER = { text: "#ffd24d", underline: "#ffd24d" };
+
+  // Pick your label styling in one place
+  const LABEL_FONT_SIZE = 16;
+  const LABEL_FONT_WEIGHT = 200;      // 600  semi-bold; 400 = normal
+  const LABEL_WORLD_HEIGHT = 0.10;
+  const LABEL_UNDERLINE_THICKNESS = 1;
+  const LABEL_PADDING_X = 4, LABEL_PADDING_Y = 3;
 
   function drawLabelTexture(text, hovered = false) {
     const colors = hovered ? LABEL_HOVER : LABEL_NORMAL;
-    const font = "600 24px Georgia, serif";
-    const underlineThickness = 2;
-    const underlineGap = 6;
-    const paddingX = 6, paddingY = 4;
+    const font = `${LABEL_FONT_WEIGHT} ${LABEL_FONT_SIZE}px Georgia, serif`;
 
     const c = document.createElement("canvas");
     const ctx = c.getContext("2d");
     ctx.font = font;
 
     const w = Math.ceil(ctx.measureText(text).width);
-    const h = Math.ceil(24 * 1.25);
-    const cw = w + paddingX * 2;
-    const ch = h + paddingY * 2;
+    const h = Math.ceil(LABEL_FONT_SIZE * 1.25);
+    const cw = w + LABEL_PADDING_X * 2;
+    const ch = h + LABEL_PADDING_Y * 2;
 
     const pot = (n) => 2 ** Math.ceil(Math.log2(n));
     c.width = pot(cw); c.height = pot(ch);
@@ -174,18 +253,21 @@ function main() {
     ctx.fillStyle = colors.text;
     ctx.textBaseline = "middle";
     const midY = ch / 2;
-    ctx.fillText(text, paddingX, midY);
+    ctx.fillText(text, LABEL_PADDING_X, midY);
 
-    const underlineY = midY + Math.floor(24 / 2) - 4 + underlineGap;
+    // underline
+    const underlineY = midY + Math.floor(LABEL_FONT_SIZE / 2) - 4 + 5; // small gap
     ctx.beginPath();
-    ctx.moveTo(paddingX, underlineY);
-    ctx.lineTo(paddingX + w, underlineY);
-    ctx.lineWidth = underlineThickness;
+    ctx.moveTo(LABEL_PADDING_X, underlineY);
+    ctx.lineTo(LABEL_PADDING_X + w, underlineY);
+    ctx.lineWidth = LABEL_UNDERLINE_THICKNESS;
     ctx.strokeStyle = colors.underline;
     ctx.stroke();
 
     const tex = new THREE.CanvasTexture(c);
     tex.anisotropy = 8;
+    tex.minFilter = THREE.LinearMipmapLinearFilter; // smooth small sizes
+    tex.magFilter = THREE.LinearFilter;
     tex.needsUpdate = true;
     return { texture: tex, width: cw, height: ch };
   }
@@ -195,18 +277,21 @@ function main() {
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
       map: texture, transparent: true, depthTest: false, depthWrite: false,
     }));
-    const spriteWorldHeight = 0.16;
+
     const aspect = width / height;
-    sprite.scale.set(spriteWorldHeight * aspect, spriteWorldHeight, 1);
+    sprite.scale.set(LABEL_WORLD_HEIGHT * aspect, LABEL_WORLD_HEIGHT, 1);
     sprite.renderOrder = 1000;
 
     sprite.userData._hovered = false;
     sprite.userData.updateHover = (hovered) => {
       if (sprite.userData._hovered === hovered) return;
       sprite.userData._hovered = hovered;
-      const t2 = drawLabelTexture(text, hovered).texture;
+      const { texture: t2, width: w2, height: h2 } = drawLabelTexture(text, hovered);
       sprite.material.map.dispose();
       sprite.material.map = t2;
+      // keep the same world height when hovered
+      const asp2 = w2 / h2;
+      sprite.scale.set(LABEL_WORLD_HEIGHT * asp2, LABEL_WORLD_HEIGHT, 1);
       sprite.material.needsUpdate = true;
     };
     return sprite;
@@ -223,9 +308,9 @@ function main() {
     return label;
   }
 
-  addCountryLabel({ name: "Brazil",      code: "BRA", lat: -10.0, lon: -52.0 });
-  addCountryLabel({ name: "Poland",      code: "POL", lat:  52.0, lon:  19.0 });
-  addCountryLabel({ name: "South Korea", code: "KOR", lat:  36.0, lon: 128.0 });
+  addCountryLabel({ name: "Brazil", code: "BRA", lat: -10.0, lon: -52.0 });
+  addCountryLabel({ name: "Poland", code: "POL", lat: 52.0, lon: 19.0 });
+  addCountryLabel({ name: "South Korea", code: "KOR", lat: 36.0, lon: 128.0 });
 
   /* ---------- Boundaries & helpers ---------- */
   function ringToLine(ring, material) {
@@ -235,6 +320,16 @@ function main() {
     if (lon0 !== lonN || lat0 !== latN) pts.push(projectLL(-lat0 + geoJsonLatOffset, lon0));
     return new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), material.clone());
   }
+
+  function ringToLine2(ring, material, scale = 1.0) {
+  const pts = [];
+  for (const [lon, lat] of ring) pts.push(projectLL(-lat + geoJsonLatOffset, lon).multiplyScalar(scale));
+  const [lon0, lat0] = ring[0], [lonN, latN] = ring[ring.length - 1];
+  if (lon0 !== lonN || lat0 !== latN) pts.push(projectLL(-lat0 + geoJsonLatOffset, lon0).multiplyScalar(scale));
+  return line2FromPoints(pts, material);
+}
+
+
   function addCountryOutline(feature, parentGroup, material) {
     const g = feature.geometry; if (!g) return;
     const addPoly = (poly) => {
@@ -332,7 +427,12 @@ function main() {
             return newGeom;
           };
           COUNTRY_FEATURES.push({ type: "Feature", properties: { NAME: info.name, CODE: info.code }, geometry: transformGeometry(f.geometry) });
-          addCountryOutline(f, countryOutlineGroup, outlineMaterial);
+          // crisp near-black outline
+          addCountryOutline(f, countryOutlineGroup, selectedOutlineMaterial);
+
+          // soft halo (same geometry, drawn in a slightly up-scaled group)
+          //addCountryOutline(f, countryGlowGroup, selectedGlowMaterial);
+
         });
       } catch (e) { console.error(`[countries] Failed to load ${info.name}:`, e); }
     }
@@ -342,7 +442,6 @@ function main() {
   function makeBoxes(file, hueRange, maxBoxes = 150_000, opts = {}) {
     const { min, max, data, xllcorner, yllcorner, cellsize, nrows, ncols } = file;
     const range = (max - min) || 1;
-    const invertLightness = !!opts.invertLightness; // true => high values look darker
 
     const totalCells = nrows * ncols;
     const stride = Math.max(1, Math.ceil(Math.sqrt(totalCells / maxBoxes)));
@@ -368,29 +467,36 @@ function main() {
         const lonRaw = xllcorner + (col + 0.5) * cellsize;
         const lon = normLon360(lonRaw);
 
-        const amount = (v - min) / range;
+        const t = (v - min) / range;
 
         const geometry = new THREE.BoxGeometry(1, 1, 1);
 
         lonHelper.rotation.y = THREE.MathUtils.degToRad(lon) + lonFudge;
         latHelper.rotation.x = THREE.MathUtils.degToRad(lat) + latFudge;
 
-        positionHelper.scale.set(0.005, 0.005, THREE.MathUtils.lerp(0.000001, 0.02, amount));
+        positionHelper.scale.set(0.005, 0.005, THREE.MathUtils.lerp(0.000001, 0.02, t));
         originHelper.updateWorldMatrix(true, false);
         geometry.applyMatrix4(originHelper.matrixWorld);
 
-        // hue: use provided range (can be constant); lightness: optionally inverted
-        const hue = THREE.MathUtils.lerp(...hueRange, amount);
-        const lightness = invertLightness
-          ? THREE.MathUtils.lerp(0.85, 0.25, amount)  // low->light blue, high->deep blue
-          : THREE.MathUtils.lerp(0.4, 1.0, amount);
-
-        color.setHSL(hue, 1, lightness);
-        const rgb = color.toArray().map(x => x * 255);
+        // --- NEW: palette ramp support ---
+        let rgb;
+        if (opts && Array.isArray(opts.colorRampColors) && opts.colorRampColors.length >= 2) {
+          const c1 = new THREE.Color(opts.colorRampColors[0]);
+          const c2 = new THREE.Color(opts.colorRampColors[1]);
+          const c = c1.clone().lerp(c2, t);
+          rgb = c.toArray().map(v => v * 255);
+        } else {
+          // fallback to old HSL path
+          const hue = THREE.MathUtils.lerp(...hueRange, t);
+          color.setHSL(hue, 1, THREE.MathUtils.lerp(0.4, 1.0, t));
+          rgb = color.toArray().map(v => v * 255);
+        }
 
         const numVerts = geometry.getAttribute("position").count;
         const colors = new Uint8Array(3 * numVerts);
-        colors.forEach((_, i) => { colors[i] = rgb[i % 3]; });
+        for (let i = 0; i < colors.length; i += 3) {
+          colors[i] = rgb[0]; colors[i + 1] = rgb[1]; colors[i + 2] = rgb[2];
+        }
         geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3, true));
 
         geometries.push(geometry);
@@ -406,8 +512,10 @@ function main() {
   /* ---------- Layers ---------- */
   async function loadAll() {
     const rasters = [
-      { key: "tree",   name: "Tree Cover in 2000", hueRange: [0.28, 0.38], url: TREECOVER_DATA_URL, opts: {} },
-      { key: "gdpasc", name: "GDP 2000 (ASC)",     hueRange: [0.60, 0.60], url: GDP_ASC_URL,        opts: { invertLightness: true } }
+      // Tree cover: light → green
+      { key: "tree", name: "Tree Cover in 2000", hueRange: [0, 0], url: TREECOVER_DATA_URL, opts: { colorRampColors: ["#F7FBEA", "#CBEAA6"] } },
+      // GDP: light → deep purple
+      { key: "gdpasc", name: "GDP 2000 (ASC)", hueRange: [0, 0], url: GDP_ASC_URL, opts: { colorRampColors: ["#D9BFD6", "#3A0D3E"] } }
     ];
     await Promise.all(rasters.map(async r => { r.file = parseData(await loadFile(r.url)); }));
 
@@ -423,7 +531,7 @@ function main() {
 
     const uiElem = document.querySelector("#list");
     const layers = [
-      { kind: "asc", key: "tree",   name: "Tree Cover in 2000" },
+      { kind: "asc", key: "tree", name: "Tree Cover in 2000" },
       { kind: "asc", key: "gdpasc", name: "GDP 2000 (ASC)" }
     ];
 
@@ -447,7 +555,7 @@ function main() {
       li.addEventListener("click", () => selectLayer(layer));
     });
 
-    return () => {};
+    return () => { };
   }
 
   /* ---------- Navigation + interactions ---------- */
@@ -493,27 +601,15 @@ function main() {
       return;
     }
 
-    // Fallback to globe -> polygon
-    const hit = raycaster.intersectObject(earthMesh, false)[0];
-    if (!hit) return;
-
-    const invYaw = -earthMesh.rotation.y;
-    const p = hit.point.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), invYaw);
-    const { lat, lon } = vector3ToLatLon(p);
-    const pt = turf.point([lon, -lat + geoJsonLatOffset]);
-    const feature = COUNTRY_FEATURES.find(f => turf.booleanPointInPolygon(pt, f));
-    if (feature) {
-      goToCountryDetails(feature.properties.CODE);
-      requestRenderIfNotRequested();
-    }
+    // (No globe/polygon click action needed)
   }
 
   function dispatchUI(e) {
     switch (e.type) {
       case "pointermove": onPointerMove(e); break;
-      case "click":       onCountryClick(e); break;
+      case "click": onCountryClick(e); break;
       case "resize":
-      case "change":      requestRenderIfNotRequested(); break;
+      case "change": requestRenderIfNotRequested(); break;
     }
   }
 
@@ -523,7 +619,7 @@ function main() {
     await loadCountries();
   }
 
-  let updateMorphTargets = () => {};
+  let updateMorphTargets = () => { };
   Promise.all([loadGlobalBoundariesAndCountries(), loadAll()]).then(() => {
     requestRenderIfNotRequested();
   });
@@ -554,9 +650,9 @@ function main() {
 
   // listeners
   canvas.addEventListener("pointermove", dispatchUI, false);
-  canvas.addEventListener("click",       dispatchUI, false);
-  window.addEventListener("resize",      dispatchUI, false);
-  controls.addEventListener("change",    dispatchUI);
+  canvas.addEventListener("click", dispatchUI, false);
+  window.addEventListener("resize", dispatchUI, false);
+  controls.addEventListener("change", dispatchUI);
 
   function requestRenderIfNotRequested() {
     if (!renderRequested) { renderRequested = true; requestAnimationFrame(render); }
