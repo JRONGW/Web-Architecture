@@ -3,9 +3,9 @@ body {
   height: 100%;
   margin: 0;
   color: #ffffff;
-  font-family: sans-serif;
-  font-size: 13px;
-  line-height: 20px;
+  font-family: Georgia;
+  font-size: 26px;
+  line-height: 40px;
 }
 #c {
   width: 100%;
@@ -16,25 +16,29 @@ body {
 #title {
   position: absolute;
   top: 20px;
-  width: 270px;
+  width: 870px;
   left: 20px;
   background-color: rgba(0, 0, 0, 0.2);
   border-radius: 3px;
-  font: 20px Georgia;
+  font: 40px Georgia;
   padding: 10px;
 }
+
+
 
 #currentInfo {
-  width: 300px;
+  width: 700px;
   position: absolute;
   left: 20px;
-  top: 63px;
 
-  background-color: rgba(0, 0, 0, 0.2);
+  /* push it farther down to clear the title */
+  top: clamp(120px, 8vh, 400px);
 
+  background-color: rgb(0, 0, 0,0);
   border-top: 1px solid rgba(255, 255, 255, 0.4);
-  padding: 10px;
+  padding: 20px;
 }
+
 
 #list {
   display: flex;

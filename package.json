@@ -5,12 +5,15 @@
   "main": "index.html",
   "scripts": {
     "start": "parcel index.html --open",
-    "build": "parcel build index.html"
+    "build": "parcel build index.html",
+    "dev": "parcel index.html --open"
   },
   "dependencies": {
-    "@tweenjs/tween.js": "18.6.4",
+    "@turf/turf": "^7.2.0",
+    "@tweenjs/tween.js": "^18.6.4",
+    "geotiff": "^2.1.4-beta.0",
     "parcel-bundler": "^1.6.1",
-    "three": "0.128.0"
+    "three": "^0.128.0"
   },
   "devDependencies": {
     "@babel/core": "7.2.0"
@@ -18,5 +21,15 @@
   "resolutions": {
     "@babel/preset-env": "7.13.8"
   },
-  "keywords": []
+  "keywords": [],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JRONGW/Web-Architecture.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/JRONGW/Web-Architecture/issues"
+  },
+  "homepage": "https://github.com/JRONGW/Web-Architecture#readme"
 }
