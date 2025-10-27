@@ -5,14 +5,14 @@ import { BufferGeometryUtils } from "three/examples/jsm/utils/BufferGeometryUtil
 import * as TWEEN from "@tweenjs/tween.js";
 import * as turf from "@turf/turf";
 
-import WORLD_TEXTURE from "../assets/world_white.png";
-import TREECOVER_DATA_URL from "../data/forestclipped.asc";
-import GDP_ASC_URL from "../data/2000GDPresample.asc";
+import WORLD_TEXTURE from "../src/assets/world_white.png";
+import TREECOVER_DATA_URL from "../src/data/forestclipped.asc";
+import GDP_ASC_URL from "../src/data/2000GDPresample.asc";
 
-import COUNTRY_BRAZIL from "../data/Brazil.geojson";
-import COUNTRY_POLAND from "../data/Poland.geojson";
-import COUNTRY_SOUTHKOREA from "../data/SouthKorea.geojson";
-import GLOBAL_BOUNDARIES from "../data/globalboundaries.geojson";
+import COUNTRY_BRAZIL from "../src/data/Brazil.geojson";
+import COUNTRY_POLAND from "../src/data/Poland.geojson";
+import COUNTRY_SOUTHKOREA from "../src/data/SouthKorea.geojson";
+import GLOBAL_BOUNDARIES from "../src/data/globalboundaries_simplified.geojson";
 
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
