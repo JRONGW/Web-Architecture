@@ -2,4 +2,6 @@ node_modules/
 dist/
 .cache/
 Miniconda3-latest-*.sh
-/data/globalboundaries.geojson
+/src/data/globalboundaries.geojson
+
+src/data/globalboundaries.geojson
